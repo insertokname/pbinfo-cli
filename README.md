@@ -29,7 +29,7 @@ I will be using [chocolatey](https://chocolatey.org/) for this, [here](https://c
 
 After you have installed it just run in an admin cmd or ps:
 ```
-choco install cargo openssl  pkgconfiglite
+choco install rust openssl pkgconfiglite
 ```
 
 After we installed these we just need to build it
