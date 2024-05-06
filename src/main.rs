@@ -1,8 +1,8 @@
-use std::fs;
-
 use clap::Parser;
 
 use colored::Colorize;
+
+mod config;
 
 #[derive(Debug)]
 enum ResponseType {
@@ -170,7 +170,6 @@ fn parse_response(response: &String) -> Result<String, ResponseType> {
         }
         return Err(ResponseType::UnknownUploadError);
     }
-    println!("Upload Succeful");
     Ok(table["id_solutie"].to_string())
 }
 
@@ -334,29 +333,21 @@ fn parse_score(input: &str) -> Result<(), Box<dyn std::error::Error>> {
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Name of the person to greet
+    /// Name of the source file
     #[arg(short, long, default_value_t={"main.cpp".to_string()})]
     filename: String,
 
-    /// Number of times to greet
+    /// If set asks for a new username when run
     #[arg(
-        short,
         long,
-        default_value_t = 1
     )]
-    count: u8,
+    reset_username:bool,
 
+    /// If set asks for a new password when run
     #[arg(
         long,
-        default_value_t=0
     )]
-    reset_username:u8,
-
-    #[arg(
-        long,
-        default_value_t=0
-    )]
-    reset_password:u8,
+    reset_password:bool,
 
     #[arg(
         short,
@@ -365,87 +356,41 @@ struct Args {
     id_problema:String
 }
 
-#[derive(serde::Deserialize, Debug, serde::Serialize)]
-struct Config {
-    username: String,
-    password: String,
-    ssid: String,
-    form_token: String,
-}
-
-impl Config {
-    fn default() -> Config {
-        Config {
-            username: "".to_string(),
-            password: "".to_string(),
-            ssid: "".to_string(),
-            form_token: "".to_string(),
-        }
-    }
-}
-
-fn save_config(config: &Config) {
-    let proj_dirs = directories::ProjectDirs::from("dev", "insertokername", "pbinfo-cli").unwrap();
-    let config_dir = proj_dirs.config_dir();
-
-    let file_path = config_dir.join("pbinfo.toml");
-    if let Some(parent_dir) = std::path::Path::new(&file_path).parent() {
-        if !parent_dir.exists() {
-            std::fs::create_dir_all(parent_dir)
-                .expect("could not create config parent folders!\nCheck permisions!");
-        }
-    }
-
-    let _ = std::fs::File::create(&file_path).expect("could not create file\nCheck permisions!");
-
-    std::fs::write(file_path, toml::to_string(&config).unwrap())
-        .expect("could not write config file!");
-}
-
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
 
-    let mut config = {
-        let proj_dirs =
-            directories::ProjectDirs::from("dev", "insertokername", "pbinfo-cli").unwrap();
-        let config_dir = proj_dirs.config_dir();
+    let mut config = config::get_config();
 
-        let config_file = fs::read_to_string(config_dir.join("pbinfo.toml"));
+    println!("{:#?}", config);
 
-        let config: Config = match config_file {
-            Ok(file) => toml::from_str(&file).unwrap(),
-            Err(_) => {
-                save_config(&Config::default());
-                Config::default()
-            }
-        };
-        config
-    };
-
-    print!("{:#?}", config);
-
-    if config.username == "" || args.reset_username==1{
+    if config.username == "" || args.reset_username{
         println!("Enter username:");
+        config.username.clear();
         std::io::stdin()
             .read_line(&mut config.username)
             .expect("invalid username!");
 
         config.username= config.username.trim().to_string();
-        save_config(&config);
+        config::save_config(&config);
 
     }
 
-    if config.password == "" || args.reset_password==1{
+    if config.password == "" || args.reset_password{
         println!("Enter password:");
+        config.password.clear();
         std::io::stdin()
             .read_line(&mut config.password)
             .expect("invalid password!");
-        save_config(&config);
-
+        config.password = config.password.trim().to_string();
+        config::save_config(&config);
     };
 
-    let source = std::fs::read_to_string(args.filename).expect("Could not read source file!");
+    let source = std::fs::read_to_string(args.filename).expect("Could not read source file!\n");
+    if source.is_empty(){
+        println!("Given source file was empty!");
+        std::process::exit(1);
+    }
 
     // settings.get("ssid").expect("didn't find the ssid in config");
     // settings.get("form_token").expect("didn't find the form_token in config");
@@ -454,6 +399,7 @@ async fn main() {
 
     // let file = std::include_str!("other-score.json");
 
+    println!("Uploading solution...");
     let solution_id = match try_upload(&args.id_problema, &source, &config.ssid).await {
         Ok(val) => val,
         Err(_) => {
@@ -467,7 +413,7 @@ async fn main() {
             .await
             {
                 Ok(val) => {
-                    save_config(&config);
+                    config::save_config(&config);
                     val
                 }
                 Err(err) => {
@@ -485,15 +431,13 @@ async fn main() {
         }
     };
 
-    println!("SOLUTION ID:{solution_id}");
+    println!("Upload success! solution id:{solution_id}");
 
+    let answers = get_score(&solution_id, &config.ssid)
+        .await
+        .unwrap();
 
-
-    // let answers = get_score(&solution_id, &ssid)
-    //     .await
-    //     .unwrap();
-
-    // println!("{answers}");
+    println!("{answers}");
 
     while let Err(err) = parse_score(
         &get_score(&solution_id, &config.ssid)
