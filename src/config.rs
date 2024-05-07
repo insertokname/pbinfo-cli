@@ -2,7 +2,7 @@ use std::fs;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
 pub struct Config {
-    pub username: String,
+    pub email: String,
     pub password: String,
     pub ssid: String,
     pub form_token: String,
@@ -11,7 +11,7 @@ pub struct Config {
 impl Config {
     pub fn default() -> Config {
         Config {
-            username: "".to_string(),
+            email: "".to_string(),
             password: "".to_string(),
             ssid: "".to_string(),
             form_token: "".to_string(),
@@ -41,7 +41,7 @@ pub fn get_config() -> Config{
     let proj_dirs =
         directories::ProjectDirs::from("dev", "insertokername", "pbinfo-cli").unwrap();
     let config_dir = proj_dirs.config_dir();
-    println!("{:#?}",config_dir);
+    // println!("{:#?}",config_dir);
 
 
     let config_file = fs::read_to_string(config_dir.join("pbinfo.toml"));

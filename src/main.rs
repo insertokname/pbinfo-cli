@@ -21,7 +21,7 @@ enum CookieError {
 
 #[derive(thiserror::Error, Debug)]
 enum UploadError {
-    #[error("Error: The user is not logged in!")]
+    #[error("Error: The user is not logged in!\nThe password or the email may be incorect!")]
     NotLoggedIn,
 }
 
@@ -68,7 +68,7 @@ async fn upload_solution(
     let response = request.send().await?;
     let body = response.text().await?;
 
-    println!("{}", &body);
+    //println!("{}", &body);
 
     Ok(body)
 }
@@ -92,7 +92,7 @@ fn try_get_ssid(response: &reqwest::Response)->Result<String,Box<dyn std::error:
 }
 
 async fn login(
-    username: &str,
+    email: &str,
     password: &str,
     form_token: &mut String,
     ssid: &mut String,
@@ -105,7 +105,7 @@ async fn login(
     headers.insert("Cookie", format!("SSID={ssid}").parse()?);
 
     let form_data = reqwest::multipart::Form::new()
-        .text("user", username.to_string())
+        .text("user", email.to_string())
         .text("parola", password.to_string())
         .text("form_token", form_token.to_string());
 
@@ -139,7 +139,7 @@ async fn login(
     new_headers.insert("Cookie", format!("SSID={ssid}").parse()?);
 
     let new_form_data = reqwest::multipart::Form::new()
-        .text("user", username.to_string())
+        .text("user", email.to_string())
         .text("parola", password.to_string())
         .text("form_token", form_token.to_string());
 
@@ -221,7 +221,7 @@ async fn get_score(
         .request(
             reqwest::Method::POST,
             format!(
-                "https://www.pbinfo.ro/ajx-module/ajx-solutie-detalii-evaluare.php?id={sol_id}"
+                "https://www.pbinfo.ro/ajx-module/ajx-solutie-detalii-evaluare.php?force_reload&id={sol_id}"
             ),
         )
         .headers(headers);
@@ -251,7 +251,7 @@ fn try_remove_sorrounding_quotes(input: String) -> Option<String> {
 }
 
 fn parse_score(input: &str) -> Result<(), Box<dyn std::error::Error>> {
-    dbg!(input);
+    // println!(input);
     let table: serde_json::Value = match serde_json::from_str(input) {
         Ok(val) => val,
         Err(_) => return Err(Box::new(ParseError::JsonInit)),
@@ -307,7 +307,7 @@ fn parse_score(input: &str) -> Result<(), Box<dyn std::error::Error>> {
                 .trim_end(),
             rm_quotes(&i["detalii"]["memorie"]),
             if is_exemplu == 1 {
-                "  Este exemplu"
+                "  (exemplu)"
             } else {
                 ""
             },
@@ -337,11 +337,11 @@ struct Args {
     #[arg(short, long, default_value_t={"main.cpp".to_string()})]
     filename: String,
 
-    /// If set asks for a new username when run
+    /// If set asks for a new email when run
     #[arg(
         long,
     )]
-    reset_username:bool,
+    email:bool,
 
     /// If set asks for a new password when run
     #[arg(
@@ -362,16 +362,16 @@ async fn main() {
 
     let mut config = config::get_config();
 
-    println!("{:#?}", config);
+    // println!("{:#?}", config);
 
-    if config.username == "" || args.reset_username{
-        println!("Enter username:");
-        config.username.clear();
+    if config.email == "" || args.email{
+        println!("Enter email:");
+        config.email.clear();
         std::io::stdin()
-            .read_line(&mut config.username)
-            .expect("invalid username!");
+            .read_line(&mut config.email)
+            .expect("invalid email!");
 
-        config.username= config.username.trim().to_string();
+        config.email= config.email.trim().to_string();
         config::save_config(&config);
 
     }
@@ -405,7 +405,7 @@ async fn main() {
         Err(_) => {
             println!("Attempting to login!");
             match login(
-                &config.username,
+                &config.email,
                 &config.password,
                 &mut config.form_token,
                 &mut config.ssid,
@@ -414,6 +414,7 @@ async fn main() {
             {
                 Ok(val) => {
                     config::save_config(&config);
+                    
                     val
                 }
                 Err(err) => {
@@ -425,29 +426,32 @@ async fn main() {
             match try_upload(&args.id_problema, &source, &config.ssid).await {
                 Ok(val) => val,
                 Err(_) => {
+                    println!("The password or the email may be incorect, please double check!");
                     std::process::exit(1);
                 }
             }
         }
     };
 
-    println!("Upload success! solution id:{solution_id}");
+    // println!("Upload success! solution id:{solution_id}");
 
-    let answers = get_score(&solution_id, &config.ssid)
-        .await
-        .unwrap();
+    // tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+    // let answers = get_score(&solution_id, &config.ssid)
+    //     .await
+    //     .unwrap();
 
-    println!("{answers}");
+    // println!("{answers}");
 
+    println!("Program is being evaluated!");
     while let Err(err) = parse_score(
         &get_score(&solution_id, &config.ssid)
             .await
             .unwrap(),
     ) {
+        tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
         if let Some(down_err) = err.downcast_ref::<ParseError>() {
             if *down_err == ParseError::StillExecuting {
-                println!("Program is still being executed...!");
-                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+                println!("Program is still being evaluated...!");
                 continue;
             }
         }
