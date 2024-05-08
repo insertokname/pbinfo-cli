@@ -783,7 +783,7 @@ dependencies = [
 
 [[package]]
 name = "pbinfo-cli"
-version = "0.2.0"
+version = "1.0.0"
 dependencies = [
  "clap",
  "colored",
