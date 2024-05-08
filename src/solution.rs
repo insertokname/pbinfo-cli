@@ -1,6 +1,7 @@
 use crate::login;
 use crate::parse;
 use crate::user_config;
+use log::{info,error};
 
 async fn upload_helper(
     problem_id: &str,
@@ -51,26 +52,26 @@ async fn try_upload(
     let response = match upload_helper(id, source, ssid).await {
         Ok(val) => val,
         Err(_) => {
-            println!("ERROR:\n\tCould not connect to pbinfo!\n\tCheck network connection and that pbinfo dns is up.");
+            error!("Could not connect to pbinfo!\n\tCheck network connection and that pbinfo dns is up.");
             std::process::exit(1);
         }
     };
 
     match parse::parse_response(&response) {
         Ok(val) => {
-            println!("Upload succefull!");
+            info!("Upload succefull!");
             return Ok(val);
         }
         Err(err) => match err {
             parse::ResponseType::ParseError => {
-                println!("ERROR:\n\tDidn't get a valid response: {}", response);
+                error!("Didn't get a valid response: {}", response);
                 std::process::exit(1);
             }
             parse::ResponseType::UnknownUploadError => {
-                println!("ERROR:\n\tINVALID RESPONSE:{}", response);
+                error!("INVALID RESPONSE:{}", response);
             }
             parse::ResponseType::LipsaAuth => {
-                println!("The user is not logged in!");
+                info!("The user is not logged in!");
                 return Err(Box::new(UploadError::NotLoggedIn));
             }
         },
@@ -120,7 +121,7 @@ pub async fn upload(
     match try_upload(problem_id, &source, &user_config.ssid).await {
         Ok(val) => val,
         Err(_) => {
-            println!("Attempting to login!");
+            info!("Attempting to login!");
             match login::login(
                 &user_config.email,
                 &user_config.password,
@@ -134,15 +135,15 @@ pub async fn upload(
                     val
                 }
                 Err(err) => {
-                    println!("COULD NOT LOGIN: \n{err}");
+                    error!("COULD NOT LOGIN: \n{err}");
                     std::process::exit(1);
                 }
             };
-            println!("Login succesfull!");
+            info!("Login succesfull!");
             match try_upload(problem_id, &source, &user_config.ssid).await {
                 Ok(val) => val,
                 Err(_) => {
-                    println!("The password or the email may be incorect, please double check!");
+                    error!("The password or the email may be incorect, please double check!");
                     std::process::exit(1);
                 }
             }

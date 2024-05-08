@@ -18,7 +18,11 @@ pub struct Args {
     pub reset_password: bool,
 
     #[arg(short, long)]
-    pub id_problema: String,
+    pub problem_id: String,
+
+    /// If set prints out more debuging info
+    #[arg(short, long)]
+    pub verbose: bool,
 }
 
 /// Return through the user_config argument a user_config with a password and email

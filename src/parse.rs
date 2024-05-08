@@ -1,4 +1,5 @@
 use colored::Colorize;
+use log::info;
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum ParseError {
@@ -55,7 +56,7 @@ pub fn parse_score(score: &str) -> Result<(), Box<dyn std::error::Error>> {
     .unwrap_or("".to_string());
 
     if eval_msg != "" {
-        println!(
+        info!(
             "{}{}",
             "\nCompilation Message:\n".bold().underline().red(),
             eval_msg.red()
