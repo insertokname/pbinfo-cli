@@ -12,7 +12,18 @@ Right now the only way of running this is building the projects yourself, thankf
 All you need is rust, openssl, pkg-config
 
 - **Nix:**
-All you need to do is run `nix-shell` in the repo and everything will be installed
+All you need to do is run `nix develop` in the repo and everything will be installed
+You can also run `nix build` to automatically build the project under `./result`
+
+- **Windows:**
+I will be using [chocolatey](https://chocolatey.org/) for this, [here](https://chocolatey.org/install) is a very simple tutorial on installing it.
+
+After you have installed it just run in an admin cmd or ps:
+```
+choco install rust openssl pkgconfiglite
+```
+
+After we installed these we just need to build it
 
 - **Ubuntu:**
 ```
@@ -24,15 +35,6 @@ sudo apt install -y cargo libssl-dev pkg-config
 sudo yum install pkg-config openssl-devel
 ```
 
-- **Windows:**
-I will be using [chocolatey](https://chocolatey.org/) for this, [here](https://chocolatey.org/install) is a very simple tutorial on installing it.
-
-After you have installed it just run in an admin cmd or ps:
-```
-choco install rust openssl pkgconfiglite
-```
-
-After we installed these we just need to build it
 ### Building
 ```
 cargo build
