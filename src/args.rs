@@ -19,10 +19,6 @@ pub struct Args {
 
     #[arg(short, long)]
     pub problem_id: String,
-
-    /// If set prints out more debuging info
-    #[arg(short, long)]
-    pub verbose: bool,
 }
 
 /// Return through the user_config argument a user_config with a password and email

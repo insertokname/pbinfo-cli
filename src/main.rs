@@ -12,7 +12,7 @@ async fn main() {
     let args = args::Args::parse();
 
     env_logger::Builder::new()
-        .filter_level(if args.verbose {log::LevelFilter::Info} else {log::LevelFilter::Error})
+        .filter_level(log::LevelFilter::Info)
         .format_target(false)
         .format_timestamp(None)
         .init();
