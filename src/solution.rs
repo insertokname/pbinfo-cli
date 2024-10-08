@@ -131,7 +131,7 @@ pub async fn upload(
             .await
             {
                 Ok(val) => {
-                    user_config::save_config(&user_config);
+                    user_config.save_config();
                     val
                 }
                 Err(err) => {

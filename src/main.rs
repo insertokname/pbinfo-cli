@@ -17,9 +17,9 @@ async fn main() {
         .format_timestamp(None)
         .init();
 
-    let mut user_config = user_config::get_config();
+    let mut user_config = user_config::UserConfig::get_config();
 
-    args::make_user_config(&mut user_config, &args);
+    user_config.make_user_config(&args);
 
     let source = std::fs::read_to_string(args.filename).expect("Could not read source file!\n");
     if source.is_empty() {
