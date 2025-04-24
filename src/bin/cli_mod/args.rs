@@ -8,12 +8,16 @@ pub struct Args {
     pub filename: String,
 
     /// If set asks for a new email when run
-    #[arg(long)]
+    #[arg(long, short = 'E')]
     pub reset_email: bool,
 
     /// If set asks for a new password when run
-    #[arg(long)]
+    #[arg(long, short = 'P')]
     pub reset_password: bool,
+
+    /// If set asks for a new user_id when run
+    #[arg(long, short = 'U')]
+    pub reset_user_id: bool,
 
     #[arg(short, long)]
     pub problem_id: String,

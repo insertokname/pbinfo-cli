@@ -1,4 +1,3 @@
-use crate::args;
 use std::fs;
 
 #[derive(serde::Deserialize, Debug, serde::Serialize)]
@@ -7,6 +6,7 @@ pub struct UserConfig {
     pub password: String,
     pub ssid: String,
     pub form_token: String,
+    pub user_id: Option<String>,
 }
 
 impl UserConfig {
@@ -16,6 +16,7 @@ impl UserConfig {
             password: "".to_string(),
             ssid: "".to_string(),
             form_token: "".to_string(),
+            user_id: None,
         }
     }
 
@@ -45,7 +46,6 @@ impl UserConfig {
         let proj_dirs =
             directories::ProjectDirs::from("dev", "insertokername", "pbinfo-cli").unwrap();
         let config_dir = proj_dirs.config_dir();
-        // println!("{:#?}",config_dir);
 
         let config_file = fs::read_to_string(config_dir.join("pbinfo.toml"));
 
@@ -64,9 +64,21 @@ impl UserConfig {
     /// # Arguments
     ///
     /// * `local_user_config` - user_config that will hold the password and email
-    /// *  `args` - arguments that decide if the user password should be reset or loaded from local storage or any other option
-    pub fn make_user_config(&mut self, args: &args::Args) {
-        if self.email == "" || args.reset_email {
+    /// * `reset_email` - if true, the email will be reset
+    /// * `reset_password` - if true, the password will be reset
+    pub fn update_user_config(
+        &mut self,
+        reset_email: bool,
+        reset_password: bool,
+        reset_user_id: bool,
+    ) {
+        if reset_email || reset_password {
+            self.ssid.clear();
+            self.form_token.clear();
+            Self::save_config(&self);
+        }
+
+        if self.email == "" || reset_email {
             println!("Enter email:");
             self.email.clear();
             std::io::stdin()
@@ -77,7 +89,7 @@ impl UserConfig {
             Self::save_config(&self);
         }
 
-        if self.password == "" || args.reset_password {
+        if self.password == "" || reset_password {
             println!("Enter password:");
             self.password.clear();
             std::io::stdin()
@@ -86,5 +98,15 @@ impl UserConfig {
             self.password = self.password.trim().to_string();
             Self::save_config(&self);
         };
+
+        if reset_user_id {
+            println!("Enter user_id (leave black if you are only using the cli and not the bot):");
+            let mut temp_user_id = "".to_string();
+            std::io::stdin()
+                .read_line(&mut temp_user_id)
+                .expect("invalid user_id!");
+            self.user_id = Some(temp_user_id.trim().to_string());
+            Self::save_config(&self);
+        }
     }
 }
