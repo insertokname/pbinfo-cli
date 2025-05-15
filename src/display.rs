@@ -116,5 +116,5 @@ pub fn ask_user_credentials() -> PbinfoUser {
         .read_line(&mut password)
         .expect("invalid password!");
 
-    PbinfoUser::new(email, password)
+    PbinfoUser::new(email.trim().to_string(), password.trim().to_string())
 }
