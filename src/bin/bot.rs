@@ -65,6 +65,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut pbinfo_user = PbinfoUser::get_config().unwrap_or_else(|_| ask_user_credentials());
 
     log::info!("Logging in...");
+    pbinfo_user.save_config()?;
     pbinfo_user.login().await?;
     pbinfo_user.save_config()?;
 
