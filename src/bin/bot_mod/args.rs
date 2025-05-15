@@ -24,7 +24,7 @@ pub struct Args {
     pub end_problem_id: u32,
 
     /// The delay (in milliseconds) in between each score read (may help avoid bot detection or throttling from pbinfo.ro but slows down execution)
-    #[arg(short = 'D', long, default_value_t = 15000)]
+    #[arg(short = 'D', long, default_value_t = 30000)]
     pub delay: u64,
 
     /// If not set will just do a dry run that will just find all your solved and unsolved problems

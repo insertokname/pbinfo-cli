@@ -1,9 +1,7 @@
 use clap::Parser;
 use log::{error, info};
-use pbinfo_cli::{
-    api::{self, score},
-    display, user_config,
-};
+use pbinfo_api::pbinfo_user::PbinfoUser;
+use pbinfo_cli::display::{self, ask_user_credentials};
 
 mod cli_mod;
 use cli_mod::args;
@@ -24,31 +22,23 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .format_timestamp(None)
         .init();
 
-    let mut user_config = user_config::UserConfig::get_config();
-
-    user_config.update_user_config(args.reset_email, args.reset_password, args.reset_user_id);
-
     let source = std::fs::read_to_string(args.filename).expect("Could not read source file!\n");
     if source.is_empty() {
         error!("Given source file was empty!");
         std::process::exit(1);
     }
 
-    api::login(
-        &user_config.email,
-        &user_config.password,
-        &mut user_config.form_token,
-        &mut user_config.ssid,
-    )
-    .await?;
-    user_config.save_config();
+    let mut pbinfo_user = PbinfoUser::get_config().unwrap_or_else(|_| ask_user_credentials());
+
+    log::info!("Logging in...");
+    pbinfo_user.login().await?;
+    pbinfo_user.save_config()?;
 
     info!("Uploading solution...");
-    let solution_id = api::upload(&args.problem_id, &source, &user_config.ssid).await?;
-
+    let solution_id = pbinfo_user.upload(&args.problem_id, &source).await?;
 
     info!("Program is being evaluated!");
-    let score = score::pool_score(&solution_id, &user_config.ssid).await?;
+    let score = pbinfo_user.pool_score(&solution_id).await?;
 
     display::display_score(score)?;
     Ok(())

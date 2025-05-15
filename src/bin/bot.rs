@@ -1,15 +1,14 @@
 use clap::Parser;
-use pbinfo_cli::api::score::TopSolutionResponseType;
-use pbinfo_cli::{api, user_config};
+use pbinfo_api::pbinfo_user::{PbinfoUser, TopSolutionResponseType};
+use pbinfo_cli::display::ask_user_credentials;
 use std::collections::BTreeMap;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use thiserror::Error;
 
 mod bot_mod;
-use bot_mod::args;
+use bot_mod::{args, solve_repeated};
 
-const CONSEQUENT_MAX_ERR_COUNT: u32 = 250;
 const FOUND_PROBLEMS_FILENAME: &str = "found.json";
 
 #[tokio::main]
@@ -63,20 +62,39 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             FOUND_PROBLEMS_FILENAME
         ));
 
-    let mut user_config = user_config::UserConfig::get_config();
-    user_config.update_user_config(args.reset_email, args.reset_password, args.reset_user_id);
+    let mut pbinfo_user = PbinfoUser::get_config().unwrap_or_else(|_| ask_user_credentials());
 
     log::info!("Logging in...");
-    api::login(
-        &user_config.email,
-        &user_config.password,
-        &mut user_config.form_token,
-        &mut user_config.ssid,
-    )
-    .await?;
-    user_config.save_config();
+    pbinfo_user.login().await?;
+    pbinfo_user.save_config()?;
 
-    let mut consequent_err_count = 0;
+    // pub async fn solve(problem_id: &str, pbinfo_user: &PbinfoUser) -> Result<String, SolveError> {
+    //     let correct_solution =
+    //         get_raw_solution(problem_id)
+    //             .await
+    //             .map_err(|err| SolveError::GetSolutionError {
+    //                 problem_id: problem_id.to_string(),
+    //                 err: err.to_string(),
+    //             })?;
+
+    //     loop {
+    //         match upload(&problem_id, &correct_solution, pbinfo_user).await {
+    //             Ok(ok) => return Ok(ok),
+    //             Err(err) => match err {
+    //                 UploadError::CooldownError => {
+    //                     tokio::time::sleep(Duration::from_secs(11)).await;
+    //                 }
+    //                 err => {
+    //                     return Err(SolveError::UploadError {
+    //                         problem_id: problem_id.to_string(),
+    //                         err: err,
+    //                     })
+    //                 }
+    //             },
+    //         }
+    //     }
+    // }
+
     for i in args.start_problem_id..=args.end_problem_id {
         let problem_id = i.to_string();
         let parse_scores = match solutions.get(&problem_id) {
@@ -90,52 +108,31 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         };
         if parse_scores {
             log::info!("Getting your solutions for {i}...");
-            let solution_type = api::score::get_top_score(
-                &problem_id,
-                &user_config.ssid,
-                user_config.user_id.as_ref().unwrap(),
-            )
-            .await;
+            let solution_type = pbinfo_user.get_top_score(&problem_id).await;
             match solution_type {
                 TopSolutionResponseType::PageError(err) => {
                     log::error!(
                         "Got error while getting your solutions for problem {i}!\nError was: {err}"
                     );
-                    consequent_err_count += 1;
                 }
                 TopSolutionResponseType::ImperfectSolution
                 | TopSolutionResponseType::NoSolution
                     if !args.dry_run =>
                 {
-                    log::info!("Uploading correct solution for problem!");
-                    match api::solve(&problem_id, &user_config.ssid).await {
+                    match solve_repeated(&mut pbinfo_user, &problem_id).await {
                         Ok(ok) => {
-                            if let Err(err) = api::score::pool_score(&ok, &user_config.ssid).await {
-                                log::error!(
-                                    "Got error while pooling for execution to finish for problem {i}!\nError was: {err}"
-                                );
-                                consequent_err_count += 1;
-                            }
-                            solutions.insert(problem_id, TopSolutionResponseType::PerfectSolution);
+                            solutions.insert(problem_id, ok);
                         }
                         Err(err) => {
-                            log::error!(
-                            "Got error while uploading a solution for problem {i}!\nError was:\n{err}"
-                        );
-                            consequent_err_count += 1;
+                            log::error!("Got error while solving a problem {i}!\nError was: {err}");
                         }
                     }
                     tokio::time::sleep(tokio::time::Duration::from_millis(args.delay)).await;
                 }
                 solution_type => {
-                    consequent_err_count = 0;
                     solutions.insert(problem_id, solution_type);
                 }
             };
-            if consequent_err_count == CONSEQUENT_MAX_ERR_COUNT {
-                log::error!("Encountered too many errors in a row!\nExiting program!");
-                break;
-            }
             if i % 10 == 0 {
                 let file = File::create(FOUND_PROBLEMS_FILENAME).expect("Unable to create file");
                 serde_json::to_writer(file, &solutions).expect("Unable to write data");

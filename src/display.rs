@@ -1,5 +1,6 @@
 use colored::Colorize;
 use log::info;
+use pbinfo_api::pbinfo_user::PbinfoUser;
 use serde_json::Value;
 use thiserror::Error;
 
@@ -100,4 +101,20 @@ pub fn display_score(table: Value) -> Result<(), DisplayError> {
     }
 
     Ok(())
+}
+
+pub fn ask_user_credentials() -> PbinfoUser {
+    let mut email: String = "".to_string();
+    let mut password: String = "".to_string();
+    println!("Enter email:");
+    std::io::stdin()
+        .read_line(&mut email)
+        .expect("invalid email!");
+
+    println!("Enter password:");
+    std::io::stdin()
+        .read_line(&mut password)
+        .expect("invalid password!");
+
+    PbinfoUser::new(email, password)
 }
