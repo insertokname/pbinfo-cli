@@ -37,16 +37,16 @@ pub async fn solve_repeated(
             Err(SolveError::UploadError { problem_id, err }) => match err {
                 UploadError::CooldownError => {
                     if already_attempted_login {
-                        log::error!("Already reloged user!\n Waiting 5 minutes");
-                        tokio::time::sleep(Duration::from_secs(60 * 5)).await;
+                        log::error!("Already reloged user!\n Waiting 21 minutes");
+                        tokio::time::sleep(Duration::from_secs(60 * 21)).await;
                         continue;
                     }
 
                     log::info!("Refreshing user login to be able to upload more solutions!");
                     already_attempted_login = true;
                     if let Err(err) = pbinfo_user.fresh_login().await {
-                        log::error!("Got error while refreshing user login!\nError was: {err}\nBot will wait for 5 minutes before uploading anything else!");
-                        tokio::time::sleep(Duration::from_secs(60 * 5)).await;
+                        log::error!("Got error while refreshing user login!\nError was: {err}\nBot will wait for 21 minutes before uploading anything else!");
+                        tokio::time::sleep(Duration::from_secs(60 * 21)).await;
                     }
                     continue;
                 }
